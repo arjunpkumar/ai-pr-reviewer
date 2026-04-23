@@ -27,15 +27,22 @@ def orchestrator_evaluator(state: AgentState):
     summary += "| :--- | :--- | :--- | :--- |\n"
     
     for r in reports:
-        status_icon = "✅" if r['status'] == "PASS" else "❌"
-        summary += f"| **{r['agent']}** | {status_icon} {r['status']} | {r['severity']} | {r['findings']} |\n"
-
+        # Clean up the status string to remove extra colons/spaces the LLM might add
+        raw_status = r['status'].replace(":", "").strip().upper()
+        
+        if "FAIL" in raw_status:
+            status_display = "❌ **FAIL**"
+        elif "WARNING" in raw_status:
+            status_display = "⚠️ **WARN**"
+        else:
+            status_display = "✅ **PASS**"
+        summary += f"| {r['agent']} | {status_display} | {r['severity']} | {r['findings']} |\n"
+    
     summary += "\n---\n"
     if is_ready:
-        summary += "🚀 **Verdict:** No critical issues found. Ready for human review."
+        summary += "### 🚀 **Verdict:** No critical issues found. Ready for human review."
     else:
-        summary += "⚠️ **Verdict:** Critical issues detected. Please fix before merging."
-
+        summary += "### 🛑 **Verdict:** Critical issues detected. Please fix before merging."
     return {
         "final_summary": summary, 
         "deployment_ready": is_ready
