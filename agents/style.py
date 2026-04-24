@@ -30,4 +30,8 @@ def run_style_agent(state: AgentState):
     # Force the agent name in case the model hallucinates a different one
     response["agent"] = "Style"
     
-    return {"reports": [response]}
+    return {
+        "reports": [response],
+        "pr_diff": state["pr_diff"],
+        "pr_description": state["pr_description"]
+    }

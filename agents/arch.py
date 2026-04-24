@@ -30,4 +30,8 @@ def run_arch_agent(state: AgentState):
     # Safety check: Ensure the agent name is set correctly
     response["agent"] = "Architecture"
     
-    return {"reports": [response]}
+    return {
+        "reports": [response],
+        "pr_diff": state["pr_diff"],           
+        "pr_description": state["pr_description"] 
+    }

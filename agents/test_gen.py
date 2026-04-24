@@ -30,4 +30,8 @@ def run_test_agent(state: AgentState):
     # Ensure consistency in the agent name
     response["agent"] = "Testing"
     
-    return {"reports": [response]}
+    return {
+        "reports": [response],
+        "pr_diff": state["pr_diff"],
+        "pr_description": state["pr_description"]
+    }

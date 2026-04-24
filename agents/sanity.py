@@ -38,4 +38,8 @@ def run_sanity_agent(state: AgentState):
     # Ensure 'agent' is explicitly set in case the LLM forgets
     response["agent"] = "Sanity"
     
-    return {"reports": [response]}
+    return {
+        "reports": [response],
+        "pr_diff": state["pr_diff"],
+        "pr_description": state["pr_description"]
+    }
