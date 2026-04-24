@@ -82,7 +82,14 @@ ai-pr-reviewer/
 
 ## Screenshots
 
-*Coming soon* – Add screenshots of the API response, a sample PR review comment, and the FastAPI Swagger UI.
+| Description | Image |
+|-------------|-------|
+| Adding comments in a PR | ![Adding comments in PR](screenshots/adding_comments_in_PR.png) |
+| Agent review in progress | ![Agent review in progress](screenshots/agent_review_in_progress.png) |
+| AI‑generated comments | ![AI comments](screenshots/ai_comments.png) |
+| Checks failed | ![Checks failed](screenshots/checks_failed.png) |
+| Checks succeeded | ![Checks success](screenshots/checks_success.png) |
+| Console view | ![Console view](screenshots/console_view.png) |
 
 ## Contributing
 
