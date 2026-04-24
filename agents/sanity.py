@@ -1,5 +1,6 @@
 from state import AgentState, AgentReport # Import the TypedDict schema
 from utils.llm_factory import SMART_MODEL
+from typing import cast
 
 SANITY_PROMPT = """
 You are a Senior Software Engineer specializing in Security and Bug Prevention. 
@@ -30,13 +31,18 @@ def run_sanity_agent(state: AgentState):
     # to fix the signature error
     structured_llm = SMART_MODEL.with_structured_output(AgentReport)
     
-    response = structured_llm.invoke([
+    raw_response = structured_llm.invoke([
         ("system", SANITY_PROMPT),
         ("human", f"PR Description: {state['pr_description']}\n\nDiff: {state['pr_diff']}")
     ])
-    
-    # Ensure 'agent' is explicitly set in case the LLM forgets
-    response["agent"] = "Sanity"
+
+    # 2. Force the type so Pylance sees .model_dump()
+    response = cast(AgentReport, raw_response)
+
+    # 3. Safely convert to dict
+    response_dict = response.model_dump()
+    response_dict["agent"] = "Sanity"
+
     
     return {
         "reports": [response],

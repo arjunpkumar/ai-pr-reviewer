@@ -1,5 +1,6 @@
 from state import AgentState, AgentReport
 from utils.llm_factory import SMART_MODEL
+from typing import cast
 
 ARCH_PROMPT = """
 You are a Principal Software Architect. Review the following code diff for structural integrity.
@@ -22,13 +23,17 @@ def run_arch_agent(state: AgentState):
     # SPECIFIC TYPE FIX: Change 'dict' to 'AgentReport'
     structured_llm = SMART_MODEL.with_structured_output(AgentReport)
     
-    response = structured_llm.invoke([
+    raw_response = structured_llm.invoke([
         ("system", ARCH_PROMPT),
         ("human", f"Diff: {state['pr_diff']}")
     ])
+
+     # 2. Force the type so Pylance sees .model_dump()
+    response = cast(AgentReport, raw_response)
     
-    # Safety check: Ensure the agent name is set correctly
-    response["agent"] = "Architecture"
+     # 3. Safely convert to dict
+    response_dict = response.model_dump()
+    response_dict["agent"] = "Architecture"
     
     return {
         "reports": [response],

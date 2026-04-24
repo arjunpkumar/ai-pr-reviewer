@@ -1,5 +1,6 @@
 from utils.llm_factory import SMART_MODEL
 from state import AgentState, AgentReport
+from typing import cast
 
 STYLE_PROMPT = """
 You are a Code Quality & DX Engineer. Your goal is maintainability and consistency.
@@ -16,22 +17,27 @@ Output Format (JSON):
   "findings": "List documentation gaps or naming inconsistencies.",
   "severity": "LOW"
 }
-"""
+""" 
 
 def run_style_agent(state: AgentState):
     # SPECIFIC TYPE FIX: Swap 'dict' for 'AgentReport'
     structured_llm = SMART_MODEL.with_structured_output(AgentReport)
     
-    response = structured_llm.invoke([
+    # 1. Invoke the model
+    raw_response = structured_llm.invoke([
         ("system", STYLE_PROMPT),
         ("human", f"Diff: {state['pr_diff']}")
     ])
     
-    # Force the agent name in case the model hallucinates a different one
-    response["agent"] = "Style"
+    # 2. Force the type so Pylance sees .model_dump()
+    response = cast(AgentReport, raw_response)
+    
+    # 3. Safely convert to dict
+    response_dict = response.model_dump()
+    response_dict["agent"] = "Style"
     
     return {
-        "reports": [response],
+        "reports": [response_dict],
         "pr_diff": state["pr_diff"],
         "pr_description": state["pr_description"]
     }

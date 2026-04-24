@@ -12,7 +12,7 @@ from agents.test_gen import run_test_agent
 # These wrappers print exactly what is happening between agents
 
 def sanity_node(state: AgentState):
-    print("\n--- 🔍 STEP 1: Sanity Agent ---")
+    print("\n--- 🔍 STEP 1: Sanity Agent ---") 
     if not state.get("pr_diff"):
         print("❌ CRITICAL: Sanity Agent received NO diff!")
     result = run_sanity_agent(state)
@@ -48,13 +48,19 @@ def orchestrator_evaluator(state: AgentState):
     print("\n--- 🔍 STEP 5: Evaluator ---") 
     reports = state.get("reports")
     
-    # This is likely where the 'NoneType' error is being triggered
     if reports is None:
         print("❌ ERROR: 'reports' is None in the Evaluator state!")
         return {"final_summary": "Error: Reports were lost.", "deployment_ready": False}
 
+    # Helper function to extract data regardless of if r is a dict or a Pydantic object
+    def get_field(obj, field_name, default=""):
+        if isinstance(obj, dict):
+            return obj.get(field_name, default)
+        return getattr(obj, field_name, default)
+
     is_ready = True
-    if any(r.get("severity") == "CRITICAL" for r in reports if r):
+    # check for critical issues using the helper
+    if any(get_field(r, "severity") == "CRITICAL" for r in reports if r):
         is_ready = False
 
     summary = "### 📋 AI Agent Review Summary\n\n"
@@ -63,12 +69,18 @@ def orchestrator_evaluator(state: AgentState):
     
     for r in reports:
         if not r: continue
-        raw_status = r.get('status', 'UNKNOWN').replace(":", "").strip().upper()
+        
+        # Safely extract fields using helper
+        agent_name = get_field(r, "agent", "Unknown Agent")
+        severity = get_field(r, "severity", "LOW")
+        findings = get_field(r, "findings", "No findings reported.")
+        raw_status = str(get_field(r, 'status', 'UNKNOWN')).replace(":", "").strip().upper()
+        
         status_display = "❌ **FAIL**" if "FAIL" in raw_status else "✅ **PASS**"
-        summary += f"| {r['agent']} | {status_display} | {r['severity']} | {r['findings']} |\n"
+        summary += f"| {agent_name} | {status_display} | {severity} | {findings} |\n"
     
     summary += "\n---\n"
-    summary += "### 🚀 Verdict: Ready" if is_ready else "### 🛑 Verdict: Critical Issues"
+    summary += "### 🚀 **Verdict: Ready**" if is_ready else "### 🛑 **Verdict: Critical Issues Found**"
     
     return {
         "final_summary": summary, 
@@ -78,7 +90,7 @@ def orchestrator_evaluator(state: AgentState):
 # --- 2. Build the Graph ---
 workflow = StateGraph(AgentState)
 
-# Add Nodes (Using our diagnostic wrappers)
+# Add Nodes
 workflow.add_node("sanity_agent", sanity_node)
 workflow.add_node("arch_agent", arch_node)
 workflow.add_node("style_agent", style_node)

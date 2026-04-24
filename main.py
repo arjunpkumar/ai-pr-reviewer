@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from graph import app as agent_workflow
+from state import AgentState
 
 load_dotenv()
 
@@ -112,7 +113,7 @@ async def run_ai_review(payload: dict):
         print(f"📊 Diff size: {len(diff_text)} characters")
 
         # 3. RUN AI
-        initial_state = {
+        initial_state: AgentState =  {
             "pr_diff": diff_text,
             "pr_description": pr_data.get("body") or "No description.",
             "reports": [],

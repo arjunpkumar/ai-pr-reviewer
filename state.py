@@ -1,11 +1,12 @@
 from typing import Annotated, List, TypedDict
 import operator
+from pydantic import BaseModel, Field
 
-class AgentReport(TypedDict):
-    agent: str
-    status: str
-    findings: str
-    severity: str
+class AgentReport(BaseModel):
+    agent: str = Field(description="Name of the agent")
+    status: str = Field(description="PASS, FAIL, or WARNING")
+    findings: str = Field(description="Detailed findings from the review")
+    severity: str = Field(description="LOW, MEDIUM, or HIGH")
 
 class AgentState(TypedDict):
     pr_diff: str

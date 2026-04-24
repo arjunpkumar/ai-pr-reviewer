@@ -1,5 +1,6 @@
 from utils.llm_factory import SMART_MODEL
 from state import AgentState, AgentReport
+from typing import cast
 
 TEST_GEN_PROMPT = """
 You are a Quality Assurance Automation Engineer. Your mission is to ensure code is testable and tested.
@@ -22,13 +23,17 @@ def run_test_agent(state: AgentState):
     # We use SMART_MODEL because judging 'testability' requires deeper reasoning
     structured_llm = SMART_MODEL.with_structured_output(AgentReport)
     
-    response = structured_llm.invoke([
+    raw_response = structured_llm.invoke([
         ("system", TEST_GEN_PROMPT),
         ("human", f"PR Description: {state['pr_description']}\n\nDiff: {state['pr_diff']}")
     ])
-    
-    # Ensure consistency in the agent name
-    response["agent"] = "Testing"
+
+    response = cast(AgentReport, raw_response)
+
+    # 3. Safely convert to dict
+    response_dict = response.model_dump()
+    response_dict["agent"] = "Testing"
+  
     
     return {
         "reports": [response],
