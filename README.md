@@ -1,83 +1,168 @@
-# ai-pr-reviewer
 # AI PR Reviewer
 
-## Overview
+AI PR Reviewer is a FastAPI webhook service that reviews GitHub pull requests using a LangGraph multi-agent workflow and posts a structured summary back to the PR.
 
-**AI PR Reviewer** is a lightweight FastAPI service that automatically reviews pull requests using large language models (LLMs). It leverages the **LangGraph** and **LangChain‑OpenAI** libraries to build a graph‑based workflow that:
+## How It Works
 
-1. **Fetches** the diff of a pull request.
-2. **Analyzes** the changes with an LLM (OpenAI, OpenRouter, etc.).
-3. **Generates** a concise review comment highlighting potential issues, suggestions, and overall quality.
-4. **Posts** the comment back to the repository (GitHub, GitLab, etc.) via the appropriate API.
+When GitHub sends a `pull_request` webhook (`opened`, `synchronize`, `reopened`), the service:
 
-The service is container‑friendly and can be run locally with `uvicorn` or deployed to any cloud platform that supports FastAPI.
+1. Marks the PR commit status as `pending`.
+2. Fetches the PR diff from GitHub.
+3. Runs a LangGraph workflow with multiple agents:
+   - `Sanity` (basic correctness and risk signals)
+   - `Architecture` (design and structure)
+   - `Style` (maintainability/readability)
+   - `Testing` (test coverage and testability, conditional)
+4. Builds a markdown summary table and deployment verdict.
+5. Updates commit status to `success`/`failure`.
+6. Posts the final summary as a PR comment.
 
-## Features
+Main implementation files:
+- `main.py` - FastAPI server and GitHub integration
+- `graph.py` - workflow routing and orchestration
+- `agents/` - individual agent prompts and execution
+- `state.py` - shared state schema
 
-- **Modular agents** – The `agents/` package contains reusable agents for fetching PR data, summarising changes, and formatting review comments.
-- **Configurable LLM** – Switch between OpenAI, OpenRouter, or any compatible provider by setting environment variables in a `.env` file.
-- **FastAPI endpoint** – Simple HTTP POST endpoint that can be triggered by webhooks from your version‑control system.
-- **Extensible** – Add custom analysis steps (e.g., security checks, style enforcement) by extending the LangGraph workflow.
+## Architecture
 
-## Getting Started
+Workflow path:
 
-### Prerequisites
+`START -> smart_router -> sanity -> arch -> style -> (test or evaluator) -> evaluator -> END`
 
-* Python 3.10+
-* `pip` (or `uv`/`poetry` if you prefer)
-* An API key for the LLM provider you intend to use (store it in a `.env` file – see `.gitignore`).
+Routing behavior:
+- Non-code changes can skip directly to evaluator.
+- UI-only style changes can skip test generation.
+- Final deploy readiness is decided in evaluator output.
 
-### Installation
+## Requirements
+
+- Python 3.10+
+- `pip`
+- GitHub repository webhook access
+- API keys in `.env`
+
+## Setup
 
 ```bash
-git clone https://github.com/arjunpkumar/ai-pr-reviewer.git
-cd ai-pr-reviewer
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Running the Service
+## Configuration
+
+Create `.env` in the project root:
+
+```env
+GITHUB_TOKEN=your_github_token
+OPENAI_API_KEY=your_openrouter_or_openai_compatible_key
+# Optional if switching provider in utils/llm_factory.py:
+GROQ_API_KEY=your_groq_key
+```
+
+Notes:
+- The current OpenRouter configuration reads `OPENAI_API_KEY`.
+- `.env` is gitignored.
+
+## Run Locally
 
 ```bash
-uvicorn main:server --port 8080 --reload
+uvicorn main:server --host 0.0.0.0 --port 8080 --reload
 ```
 
-The server will start on `http://localhost:8080`. You can test the endpoint with:
+Alternative:
 
 ```bash
-curl -X POST http://localhost:8080/review -H "Content-Type: application/json" -d '{"repo":"owner/repo","pr_number":1}'
+python main.py
 ```
 
-### Environment Variables
+Server endpoint:
+- `POST /webhook`
 
-Create a `.env` file in the project root:
+## GitHub Webhook Setup
 
+In your GitHub repository:
+
+1. Go to Settings -> Webhooks -> Add webhook.
+2. Set Payload URL to your service URL + `/webhook`.
+3. Set Content type to `application/json`.
+4. Select event: `Pull requests`.
+5. Save.
+
+The service expects a standard GitHub pull request webhook payload (including `pull_request.diff_url`, `pull_request.head.sha`, and `repository.full_name`).
+
+## Quick Local Endpoint Check
+
+You can verify the endpoint accepts payloads:
+
+```bash
+curl -X POST http://localhost:8080/webhook \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "opened",
+    "number": 1,
+    "repository": {"full_name": "owner/repo"},
+    "pull_request": {
+      "body": "Test PR",
+      "issue_url": "https://api.github.com/repos/owner/repo/issues/1",
+      "diff_url": "https://github.com/owner/repo/pull/1.diff",
+      "head": {"sha": "abc123"}
+    }
+  }'
 ```
-OPENAI_API_KEY=your-openai-key
-# or for OpenRouter
-OPENROUTER_API_KEY=your-openrouter-key
+
+Expected immediate response for valid actions:
+
+```json
+{"status":"processing"}
 ```
 
-The `.env` file is ignored by Git (see `.gitignore`).
+## LLM Provider Selection
 
-## Project Structure
+Provider/model wiring is controlled in `utils/llm_factory.py`.
 
+Current default:
+- `SMART_MODEL = get_smart_openrouter_model()`
+- `FAST_MODEL = get_fast_openrouter_model()`
+
+To use Groq, switch to the Groq lines in that file and set `GROQ_API_KEY`.
+
+## Utility Scripts
+
+OpenRouter utilities:
+
+```bash
+python utils/models/open_router/list_free_models.py
+python utils/models/open_router/check_open_router_health.py
 ```
+
+Groq utilities:
+
+```bash
+python utils/models/groq/list_free_models.py
+python utils/models/groq/check_groq_health.py
+```
+
+## Project Layout
+
+```text
 ai-pr-reviewer/
-├─ agents/            # Core agents and workflow definitions
-│   ├─ __init__.py
-│   ├─ arch.py        # Architecture of the LangGraph workflow
-│   ├─ sanity.py      # Sanity‑check utilities
-│   ├─ style.py       # Style‑related analysis helpers
-│   └─ test.py        # Simple unit tests for agents
-├─ hooks/             # Optional VCS webhook handlers
-├─ utils/             # Helper functions (e.g., LLM factory)
-├─ main.py            # FastAPI entry point
-├─ graph.py           # Graph definition for LangGraph
-├─ state.py           # Pydantic models for request/response state
-├─ requirements.txt   # Python dependencies
-└─ README.md          # This file
+├─ main.py
+├─ graph.py
+├─ state.py
+├─ requirements.txt
+├─ agents/
+│  ├─ base.py
+│  ├─ sanity.py
+│  ├─ arch.py
+│  ├─ style.py
+│  ├─ test_gen.py
+│  └─ evaluator.py
+└─ utils/
+   ├─ llm_factory.py
+   └─ models/
+      ├─ open_router/
+      └─ groq/
 ```
 
 ## Screenshots
@@ -86,19 +171,15 @@ ai-pr-reviewer/
 |-------------|-------|
 | Adding comments in a PR | ![Adding comments in PR](screenshots/adding_comments_in_PR.png) |
 | Agent review in progress | ![Agent review in progress](screenshots/agent_review_in_progress.png) |
-| AI‑generated comments | ![AI comments](screenshots/ai_comments.png) |
+| AI-generated comments | ![AI comments](screenshots/ai_comments.png) |
 | Checks failed | ![Checks failed](screenshots/checks_failed.png) |
 | Checks succeeded | ![Checks success](screenshots/checks_success.png) |
 | Console view | ![Console view](screenshots/console_view.png) |
 
-## Contributing
+## Testing
 
-Contributions are welcome! Please fork the repository, create a feature branch, and submit a pull request. Make sure to run the existing tests:
-
-```bash
-pytest agents/test.py
-```
+There is currently no committed automated test suite in this repository. If you add tests, include instructions here.
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+This project is licensed under the MIT License. See `LICENSE` for details.
