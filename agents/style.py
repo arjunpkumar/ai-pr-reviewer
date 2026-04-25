@@ -1,3 +1,4 @@
+from agents.base import safe_agent_call
 from utils.llm_factory import SMART_MODEL
 from state import AgentState, AgentReport
 from typing import cast
@@ -22,12 +23,14 @@ Output Format (JSON):
 def run_style_agent(state: AgentState):
     # SPECIFIC TYPE FIX: Swap 'dict' for 'AgentReport'
     structured_llm = SMART_MODEL.with_structured_output(AgentReport)
-    
-    # 1. Invoke the model
-    raw_response = structured_llm.invoke([
+
+    messages = [
         ("system", STYLE_PROMPT),
         ("human", f"Diff: {state['pr_diff']}")
-    ])
+    ]
+
+    # This handles the 429/402 retries automatically
+    raw_response = safe_agent_call(structured_llm, messages)
     
     # 2. Force the type so Pylance sees .model_dump()
     response = cast(AgentReport, raw_response)

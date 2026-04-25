@@ -1,4 +1,4 @@
-# python utils/models/open_router/list_free_models_of_open_router.py
+# python utils/models/open_router/list_free_models.py
 
 import requests
 import os

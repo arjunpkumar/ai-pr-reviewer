@@ -1,3 +1,4 @@
+from agents.base import safe_agent_call
 from utils.llm_factory import SMART_MODEL
 from state import AgentState, AgentReport
 from typing import cast
@@ -22,11 +23,14 @@ Output Format (JSON):
 def run_test_agent(state: AgentState):
     # We use SMART_MODEL because judging 'testability' requires deeper reasoning
     structured_llm = SMART_MODEL.with_structured_output(AgentReport)
-    
-    raw_response = structured_llm.invoke([
+
+    messages = [
         ("system", TEST_GEN_PROMPT),
         ("human", f"PR Description: {state['pr_description']}\n\nDiff: {state['pr_diff']}")
-    ])
+    ]
+
+    # This handles the 429/402 retries automatically
+    raw_response = safe_agent_call(structured_llm, messages)
 
     response = cast(AgentReport, raw_response)
 

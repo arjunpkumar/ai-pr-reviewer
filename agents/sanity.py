@@ -1,3 +1,4 @@
+from agents.base import safe_agent_call
 from state import AgentState, AgentReport # Import the TypedDict schema
 from utils.llm_factory import SMART_MODEL
 from typing import cast
@@ -27,16 +28,17 @@ Output Format (JSON):
 """
 
 def run_sanity_agent(state: AgentState):
-    # Specify the TypedDict 'AgentReport' instead of 'dict' 
-    # to fix the signature error
     structured_llm = SMART_MODEL.with_structured_output(AgentReport)
-    
-    raw_response = structured_llm.invoke([
+
+    # 2. Prepare the messages
+    messages = [
         ("system", SANITY_PROMPT),
         ("human", f"PR Description: {state['pr_description']}\n\nDiff: {state['pr_diff']}")
-    ])
+    ]
 
-    # 2. Force the type so Pylance sees .model_dump()
+    # This handles the 429/402 retries automatically
+    raw_response = safe_agent_call(structured_llm, messages)
+
     response = cast(AgentReport, raw_response)
 
     # 3. Safely convert to dict
@@ -45,7 +47,7 @@ def run_sanity_agent(state: AgentState):
 
     
     return {
-        "reports": [response],
+        "reports": [response], 
         "pr_diff": state["pr_diff"],
         "pr_description": state["pr_description"]
     }

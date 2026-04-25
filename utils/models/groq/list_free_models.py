@@ -1,4 +1,4 @@
-# python utils/models/groq/list_free_models_of_groq.py
+# python utils/models/groq/list_free_models.py
 
 import os
 from groq import Groq

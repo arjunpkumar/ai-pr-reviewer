@@ -1,3 +1,4 @@
+from agents.base import safe_agent_call
 from state import AgentState, AgentReport
 from utils.llm_factory import SMART_MODEL
 from typing import cast
@@ -22,11 +23,16 @@ Output Format (JSON):
 def run_arch_agent(state: AgentState):
     # SPECIFIC TYPE FIX: Change 'dict' to 'AgentReport'
     structured_llm = SMART_MODEL.with_structured_output(AgentReport)
-    
-    raw_response = structured_llm.invoke([
+
+    # 2. Prepare the messages
+    messages = [
         ("system", ARCH_PROMPT),
         ("human", f"Diff: {state['pr_diff']}")
-    ])
+    ]
+
+    # This handles the 429/402 retries automatically
+    raw_response = safe_agent_call(structured_llm, messages)
+    
 
      # 2. Force the type so Pylance sees .model_dump()
     response = cast(AgentReport, raw_response)
