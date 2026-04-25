@@ -13,8 +13,8 @@ OPENROUTER_HEADERS = {
 def get_smart_openrouter_model():
     """Top-tier model for Architecture and Test Generation."""
     return ChatOpenAI(
-        model="openai/gpt-oss-120b:free", # High reasoning
-        base_url="https://openrouter.ai/api/v1",
+        model="nvidia/nemotron-3-super-120b-a12b:free", 
+        base_url="https://openrouter.ai/api/v1", 
         default_headers=OPENROUTER_HEADERS,
         temperature=0
     )
@@ -22,8 +22,9 @@ def get_smart_openrouter_model():
 def get_fast_openrouter_model():
     """Fast, cheap model for Sanity and Style checks."""
     return ChatOpenAI(
-        model="qwen/qwen3-coder:free", 
+        model="meta-llama/llama-3.3-70b-instruct:free", 
         base_url="https://openrouter.ai/api/v1",
         default_headers=OPENROUTER_HEADERS,
         temperature=0
     )
+
