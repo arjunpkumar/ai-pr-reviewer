@@ -18,6 +18,8 @@ class EndpointFilter(logging.Filter):
         return "_stcore" not in record.getMessage()
 
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
+# Set httpx logging to WARNING to hide the POST/200 OK info messages
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 server = FastAPI()
 

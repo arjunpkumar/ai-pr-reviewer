@@ -4,6 +4,10 @@ from agents.sanity import run_sanity_agent
 from agents.arch import run_arch_agent
 from agents.style import run_style_agent
 from agents.test_gen import run_test_agent
+import logging
+
+# Set httpx logging to WARNING to hide the POST/200 OK info messages
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # --- 🚦 STEP 0: Entry Router ---
 def smart_router(state: AgentState):
@@ -25,7 +29,7 @@ def ui_test_router(state: AgentState):
     diff = state.get("pr_diff", "")
     
     # Folders that require logic/unit testing
-    logic_paths = ["lib/logic/", "lib/models/", "lib/services/", "lib/bloc/", "lib/providers/"]
+    logic_paths = ["lib/logic/", "lib/src/application/bloc/", "lib/providers/"]
     
     needs_tests = any(path in diff for path in logic_paths)
     

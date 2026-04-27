@@ -2,73 +2,94 @@
 
 import requests
 import os
-import json
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 def fetch_free_models():
-    """
-    Fetches the list of models from OpenRouter and filters for those that are free.
-    Pricing is checked against the 'prompt' field in the pricing object.
-    """
     url = "https://openrouter.ai/api/v1/models"
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
 
     if not api_key:
-        print("❌ Error: OPENAI_API_KEY not found in environment variables.")
+        print("❌ Error: API Key not found.")
         return []
 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/ai-pr-reviewer", # Optional
-        "X-Title": "PR Reviewer Utility", # Optional
     }
 
-    print("📡 Querying OpenRouter API for available models...")
-    
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
-        
         data = response.json().get('data', [])
         
-        # Filter: pricing.prompt == "0" means the model is free to use
+        # Filter for free models
         free_models = [
             model for model in data 
             if float(model.get('pricing', {}).get('prompt', 1)) == 0
         ]
-        
         return free_models
-
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         print(f"❌ API Request failed: {e}")
         return []
 
 def display_models(models):
-    """Displays the model list in a clean, formatted table."""
     if not models:
-        print("No free models found or an error occurred.")
+        print("No free models found.")
         return
 
+    # 1. Prepare the data and find max widths for each column
+    table_data = []
+    max_id = 8 # Length of 'MODEL ID'
+    max_owner = 8 # Length of 'OWNED BY'
+
+    for model in models:
+        m_id = model.get('id', 'N/A')
+        owner = m_id.split('/')[0].title() if '/' in m_id else "OpenRouter"
+        context = str(model.get('context_length', 'N/A'))
+        status = "ACTIVE"
+
+        max_id = max(max_id, len(m_id))
+        max_owner = max(max_owner, len(owner))
+        
+        table_data.append((m_id, owner, context, status))
+
+    # 2. Sort data
+    table_data.sort(key=lambda x: x[0])
+
+    # 3. Print Header with Dynamic Padding
     print(f"\n✨ Found {len(models)} Free Models on OpenRouter:\n")
     
-    # Table Header
-    header = f"{'MODEL ID':<60} | {'CONTEXT':<12} | {'MODALITY'}"
+    # We add 2 extra spaces for padding between columns
+    header = f"{'MODEL ID':<{max_id + 2}} | {'OWNED BY':<{max_owner + 2}} | {'CONTEXT':<10} | {'STATUS'}"
     print(header)
     print("-" * len(header))
 
-    # Sort models by ID for easier reading
-    for model in sorted(models, key=lambda x: x['id']):
-        model_id = model.get('id', 'N/A')
-        context = model.get('context_length', 'N/A')
-        # Check if it's text, vision, etc.
-        modality = "Text+Vision" if "vision" in str(model.get('description', '')).lower() else "Text Only"
-        
-        print(f"{model_id:<60} | {context:<12} | {modality}")
+    # 4. Print Rows
+    for m_id, owner, context, status in table_data:
+        print(f"{m_id:<{max_id + 2}} | {owner:<{max_owner + 2}} | {context:<10} | {status}")
+
+def save_models_to_file(models):
+    """Saves only the model IDs to a text file in the script's directory."""
+    if not models:
+        return
+    
+    # Get the directory where the script file is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(script_dir, "free_models.txt")
+    
+    model_ids = sorted([model.get('id') for model in models])
+    
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            for m_id in model_ids:
+                f.write(f"{m_id}\n")
+        print(f"\n💾 Saved {len(model_ids)} model IDs to: {file_path}")
+    except Exception as e:
+        print(f"❌ Failed to save file: {e}")
 
 if __name__ == "__main__":
     free_models = fetch_free_models()
     display_models(free_models)
+    save_models_to_file(free_models)

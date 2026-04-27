@@ -23,7 +23,8 @@ def get_openrouter_model(model_id: str):
 
 def get_smart_openrouter_model():
     """Top-tier model for Architecture and Test Generation."""
-    return get_openrouter_model("nvidia/nemotron-3-super-120b-a12b:free")
+    # return get_openrouter_model("nvidia/nemotron-3-super-120b-a12b:free")
+    return get_openrouter_model("nvidia/nemotron-3-nano-30b-a3b:free")
 
 def get_fast_openrouter_model():
     """Fast, cheap model for Sanity and Style checks."""
